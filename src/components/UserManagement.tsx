@@ -9,23 +9,37 @@ import {
   Calendar,
   AlertTriangle,
   ChevronRight,
+  Pause,
+  Play,
 } from "lucide-react";
-import { useSupabaseData, useAuthUsers } from "../hooks/useSupabaseData";
+import { useSupabaseData } from "../hooks/useSupabaseData";
 import { supabase, Profile } from "../lib/supabase";
+
+// Extended Profile interface with is_active
+interface ExtendedProfile extends Profile {
+  is_active?: boolean;
+}
 
 const UserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const [selectedUser, setSelectedUser] = useState<ExtendedProfile | null>(
+    null
+  );
   const [showUserDetails, setShowUserDetails] = useState(false);
 
-  // Fetch auth users
-  const { data: users, loading, error, refetch } = useAuthUsers();
+  // Fetch profiles (confirmed users)
+  const {
+    data: users,
+    loading,
+    error,
+    refetch,
+  } = useSupabaseData<ExtendedProfile>("profiles", "*");
 
   // Also fetch wallet data to show user stats
   const { data: wallets } = useSupabaseData<any>("user_wallet", "*");
 
-  console.log("👥 UserManagement - Auth users data:", users?.length, "users");
+  console.log("👥 UserManagement - Profiles data:", users?.length, "users");
   console.log("👥 UserManagement - Loading:", loading);
   console.log("👥 UserManagement - Error:", error);
   console.log("💰 Wallet data:", wallets?.length, "wallets");
@@ -51,6 +65,7 @@ const UserManagement: React.FC = () => {
         {
           username: formData.get("username") as string,
           email: formData.get("email") as string,
+          is_active: true, // New users are active by default
         },
       ]);
 
@@ -63,20 +78,30 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    const dateA = new Date(a.created_at).getTime();
+    const dateB = new Date(b.created_at).getTime();
+    return dateB - dateA; // Descending order (newest first)
+  });
+  const handleToggleUserAccess = async (
+    userId: string,
+    currentStatus: boolean
+  ) => {
+    const action = currentStatus ? "pause" : "restore";
+    if (!confirm(`Are you sure you want to ${action} this user's access?`))
+      return;
 
     try {
       const { error } = await supabase
         .from("profiles")
-        .delete()
+        .update({ is_active: !currentStatus })
         .eq("id", userId);
 
       if (error) throw error;
       refetch();
     } catch (err) {
-      console.error("Error deleting user:", err);
-      alert("Failed to delete user. Please try again.");
+      console.error("Error updating user status:", err);
+      alert("Failed to update user access. Please try again.");
     }
   };
 
@@ -146,13 +171,10 @@ const UserManagement: React.FC = () => {
 
       {/* Mobile Card View */}
       <div className="lg:hidden space-y-4">
-        {filteredUsers.map((user) => {
+        {sortedUsers.map((user) => {
           const username =
-            user.username ||
-            user.email?.split("@")[0] ||
-            user.raw_user_meta_data?.username ||
-            "Unknown";
-          const isEmailConfirmed = !!user.email_confirmed_at;
+            user.username || user.email?.split("@")[0] || "Unknown";
+          const isActive = user.is_active !== false; // Default to true if undefined
           const wallet = getUserWallet(user.id);
 
           return (
@@ -174,12 +196,12 @@ const UserManagement: React.FC = () => {
                 </div>
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    isEmailConfirmed
+                    isActive
                       ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
+                      : "bg-red-100 text-red-800"
                   }`}
                 >
-                  {isEmailConfirmed ? "Confirmed" : "Pending"}
+                  {isActive ? "Active" : "Paused"}
                 </span>
               </div>
 
@@ -222,10 +244,24 @@ const UserManagement: React.FC = () => {
                   View Details
                 </button>
                 <button
-                  onClick={() => handleDeleteUser(user.id)}
-                  className="px-3 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors duration-150"
+                  onClick={() => handleToggleUserAccess(user.id, isActive)}
+                  className={`px-3 py-2 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2 ${
+                    isActive
+                      ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
+                      : "bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                  }`}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {isActive ? (
+                    <>
+                      <Pause className="w-4 h-4" />
+                      Pause
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4" />
+                      Restore
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -263,14 +299,12 @@ const UserManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700/50">
-              {filteredUsers.map((user) => {
+              {sortedUsers.map((user) => {
                 const wallet = getUserWallet(user.id);
                 const username =
-                  user.username ||
-                  user.email?.split("@")[0] ||
-                  user.raw_user_meta_data?.username ||
-                  "Unknown";
-                const isEmailConfirmed = !!user.email_confirmed_at;
+                  user.username || user.email?.split("@")[0] || "Unknown";
+                const isActive = user.is_active !== false; // Default to true if undefined
+
                 return (
                   <tr
                     key={user.id}
@@ -299,12 +333,12 @@ const UserManagement: React.FC = () => {
                     <td className="px-4 py-3">
                       <span
                         className={`px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap ${
-                          isEmailConfirmed
+                          isActive
                             ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {isEmailConfirmed ? "Confirmed" : "Pending"}
+                        {isActive ? "Active" : "Paused"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -330,14 +364,26 @@ const UserManagement: React.FC = () => {
                             setShowUserDetails(true);
                           }}
                           className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors duration-150"
+                          title="View Details"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors duration-150"
+                          onClick={() =>
+                            handleToggleUserAccess(user.id, isActive)
+                          }
+                          className={`p-2 rounded-lg transition-colors duration-150 ${
+                            isActive
+                              ? "text-yellow-400 hover:bg-yellow-500/20"
+                              : "text-green-400 hover:bg-green-500/20"
+                          }`}
+                          title={isActive ? "Pause Access" : "Restore Access"}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {isActive ? (
+                            <Pause className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -355,7 +401,7 @@ const UserManagement: React.FC = () => {
           <div className="text-gray-400">
             {users.length === 0 ? (
               <div>
-                <p className="text-lg mb-2">No users found in authentication</p>
+                <p className="text-lg mb-2">No users found in profiles</p>
                 <p className="text-sm">Check console for debugging info</p>
               </div>
             ) : (
@@ -407,18 +453,6 @@ const UserManagement: React.FC = () => {
                   placeholder="user@example.com"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Password
-                </label>
-                <input
-                  name="password"
-                  type="password"
-                  required
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-white"
-                  placeholder="Enter password"
-                />
-              </div>
               <div className="flex space-x-3 pt-4">
                 <button
                   type="button"
@@ -459,7 +493,7 @@ const UserManagement: React.FC = () => {
                   Username
                 </label>
                 <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white break-words">
-                  {selectedUser.user_metadata?.username ||
+                  {selectedUser.username ||
                     selectedUser.email?.split("@")[0] ||
                     "No username"}
                 </div>
@@ -474,20 +508,10 @@ const UserManagement: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email Status
+                  Account Status
                 </label>
                 <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white">
-                  {selectedUser.email_confirmed_at
-                    ? "Confirmed"
-                    : "Pending confirmation"}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Provider
-                </label>
-                <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white">
-                  {selectedUser.app_metadata?.provider || "email"}
+                  {selectedUser.is_active !== false ? "Active" : "Paused"}
                 </div>
               </div>
               <div>
@@ -500,20 +524,22 @@ const UserManagement: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Last Sign In
+                  Created
                 </label>
                 <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white">
-                  {selectedUser.last_sign_in_at
-                    ? new Date(selectedUser.last_sign_in_at).toLocaleString()
-                    : "Never signed in"}
+                  {selectedUser.created_at
+                    ? new Date(selectedUser.created_at).toLocaleString()
+                    : "Unknown"}
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Created
+                  Last Updated
                 </label>
                 <div className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white">
-                  {new Date(selectedUser.created_at).toLocaleString()}
+                  {selectedUser.updated_at
+                    ? new Date(selectedUser.updated_at).toLocaleString()
+                    : "Never updated"}
                 </div>
               </div>
             </div>
@@ -524,6 +550,24 @@ const UserManagement: React.FC = () => {
                 className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors duration-200"
               >
                 Close
+              </button>
+              <button
+                onClick={() => {
+                  handleToggleUserAccess(
+                    selectedUser.id,
+                    selectedUser.is_active !== false
+                  );
+                  setShowUserDetails(false);
+                }}
+                className={`flex-1 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  selectedUser.is_active !== false
+                    ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                    : "bg-green-500 hover:bg-green-600 text-white"
+                }`}
+              >
+                {selectedUser.is_active !== false
+                  ? "Pause Access"
+                  : "Restore Access"}
               </button>
             </div>
           </div>

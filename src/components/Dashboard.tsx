@@ -580,15 +580,24 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Top Players */}
+          {/* Top Players */}
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
             <h3 className="text-lg font-semibold text-white mb-6">
               Top Players
             </h3>
             <div className="space-y-3">
               {wallets
-                .sort(
-                  (a, b) => (b.chips_won_total || 0) - (a.chips_won_total || 0)
-                )
+                .filter((wallet) => {
+                  // Filter out wallets without profiles or valid data
+                  const profile = profiles.find((p) => p.id === wallet.user_id);
+                  return profile && (wallet.experience || 0) > 0;
+                })
+                .sort((a, b) => {
+                  // Sort by experience level (descending - highest first)
+                  const aExp = a.experience || 0;
+                  const bExp = b.experience || 0;
+                  return bExp - aExp;
+                })
                 .slice(0, 5)
                 .map((wallet, index) => {
                   const profile = profiles.find((p) => p.id === wallet.user_id);
@@ -603,19 +612,19 @@ const Dashboard: React.FC = () => {
                         </div>
                         <div>
                           <div className="text-sm font-medium text-white">
-                            {profile?.username ||
-                              `User ${wallet.user_id.slice(0, 8)}`}
+                            {profile?.username || "Unknown User"}
                           </div>
                           <div className="text-xs text-gray-400">
-                            Level {wallet.level} • {wallet.games_played} games
+                            Level {wallet.level || 1} •{" "}
+                            {wallet.games_played || 0} games
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-semibold text-white">
-                          {(wallet.chips_won_total || 0).toLocaleString()}
+                          {(wallet.experience || 0).toLocaleString()} XP
                         </div>
-                        <div className="text-xs text-gray-400">chips won</div>
+                        <div className="text-xs text-gray-400">experience</div>
                       </div>
                     </div>
                   );

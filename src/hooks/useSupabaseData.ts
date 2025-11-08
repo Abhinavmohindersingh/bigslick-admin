@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 
 // Hook for fetching auth users
 export function useAuthUsers() {
@@ -11,31 +11,32 @@ export function useAuthUsers() {
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('🔍 Fetching users from profiles table...');
-      
+
+      console.log("🔍 Fetching users from profiles table...");
+
       // Get current session to check if user is authenticated
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
-        throw new Error('Not authenticated');
+        throw new Error("Not authenticated");
       }
-      
+
       // Query profiles table directly
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*');
-        
+        .from("profiles")
+        .select("*");
+
       if (profileError) {
         throw new Error(`Cannot access user data: ${profileError.message}`);
       }
-      
-      console.log('📊 Profiles data:', profileData?.length || 0, 'users');
+
+      console.log("📊 Profiles data:", profileData?.length || 0, "users");
       setData(profileData || []);
-      
     } catch (err) {
-      console.error('💥 Fetch error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error("💥 Fetch error:", err);
+      setError(err instanceof Error ? err.message : "An error occurred");
       setData([]);
     } finally {
       setLoading(false);
@@ -62,35 +63,40 @@ export function useSupabaseData<T>(
     try {
       setLoading(true);
       setError(null);
-      
-      console.log('🔍 Fetching data from table:', table);
-      console.log('🔍 Query:', query || 'SELECT *');
-      
+
+      console.log("🔍 Fetching data from table:", table);
+      console.log("🔍 Query:", query || "SELECT *");
+
       let queryBuilder = supabase.from(table);
-    
+
       if (query) {
         queryBuilder = queryBuilder.select(query);
       } else {
-        queryBuilder = queryBuilder.select('*');
+        queryBuilder = queryBuilder.select("*");
       }
-    
+
       const result = await queryBuilder;
-      console.log('📊 Raw Supabase response for', table, ':', result);
-      console.log('📊 Data array length:', result.data?.length || 0);
-      console.log('📊 First few records:', result.data?.slice(0, 3));
-      
+      console.log("📊 Raw Supabase response for", table, ":", result);
+      console.log("📊 Data array length:", result.data?.length || 0);
+      console.log("📊 First few records:", result.data?.slice(0, 3));
+
       if (result.error) {
-        console.error('❌ Supabase error:', result.error);
-        console.error('❌ Error details:', result.error.message);
-        console.error('❌ Error code:', result.error.code);
+        console.error("❌ Supabase error:", result.error);
+        console.error("❌ Error details:", result.error.message);
+        console.error("❌ Error code:", result.error.code);
         throw result.error;
       }
-      
+
       setData(result.data || []);
-      console.log('✅ Successfully set', result.data?.length || 0, 'items to state for table:', table);
+      console.log(
+        "✅ Successfully set",
+        result.data?.length || 0,
+        "items to state for table:",
+        table
+      );
     } catch (err) {
-      console.error('💥 Fetch error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error("💥 Fetch error:", err);
+      setError(err instanceof Error ? err.message : "An error occurred");
       setData([]);
     } finally {
       setLoading(false);
@@ -98,7 +104,7 @@ export function useSupabaseData<T>(
   };
 
   useEffect(() => {
-    console.log('🔄 useEffect triggered for table:', table);
+    console.log("🔄 useEffect triggered for table:", table);
     fetchData();
   }, [table, query, ...dependencies]);
 

@@ -1,22 +1,22 @@
-import React, { useState } from 'react';
-import { Shield, Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import React, { useState } from "react";
+import { Shield, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { supabase } from "../lib/supabase";
 
 interface LoginProps {
   onLogin: () => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -27,10 +27,24 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       if (error) throw error;
 
       if (data.user) {
+        // Check if the user's email is in the allowed list
+        const allowedEmails = [
+          "abhinavsinghkanwal@gmail.com",
+          "bigslickgames@gmail.com",
+        ];
+
+        if (!allowedEmails.includes(data.user.email || "")) {
+          // Sign them out immediately
+          await supabase.auth.signOut();
+          throw new Error(
+            "Access denied. You are not authorized to access this admin portal."
+          );
+        }
+
         onLogin();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -77,7 +91,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -89,7 +103,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors duration-200"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -113,7 +131,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   Signing in...
                 </div>
               ) : (
-                'Sign In'
+                "Sign In"
               )}
             </button>
           </form>

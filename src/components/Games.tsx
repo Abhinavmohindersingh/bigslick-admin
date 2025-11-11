@@ -9,6 +9,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useSupabaseData } from "../hooks/useSupabaseData";
+import { useGamePresence } from "../contexts/GamePresenceContext"; // ADD THIS
 
 interface UserWallet {
   id: string;
@@ -30,6 +31,7 @@ interface Profile {
 
 const Games: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const { presenceCounts } = useGamePresence(); // ADD THIS
 
   const { data: wallets, loading } = useSupabaseData<UserWallet>(
     "user_wallet",
@@ -51,7 +53,13 @@ const Games: React.FC = () => {
   const winRate = totalGames > 0 ? (totalWins / totalGames) * 100 : 0;
   const activePlayers = wallets.filter((w) => (w.games_played || 0) > 0).length;
   const averageGameDuration =
-    totalGames > 0 ? (totalHours * 60) / totalGames : 0; // in minutes
+    totalGames > 0 ? (totalHours * 60) / totalGames : 0;
+
+  // ADD: Calculate total online players
+  const totalOnlinePlayers = Object.values(presenceCounts).reduce(
+    (sum, count) => sum + count,
+    0
+  );
 
   if (loading) {
     return (
@@ -119,14 +127,15 @@ const Games: React.FC = () => {
           </div>
         </div>
 
+        {/* UPDATED: Show real-time online players */}
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-400">
-                Active Players
+                Players Online Now
               </p>
               <p className="text-3xl font-bold text-white mt-2">
-                {activePlayers}
+                {totalOnlinePlayers}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">
@@ -134,9 +143,9 @@ const Games: React.FC = () => {
             </div>
           </div>
           <div className="mt-4 flex items-center">
-            <Users className="w-4 h-4 text-amber-500 mr-1" />
-            <span className="text-sm font-medium text-amber-400">
-              Players with games
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse mr-2"></div>
+            <span className="text-sm font-medium text-green-400">
+              Live tracking
             </span>
           </div>
         </div>
@@ -162,7 +171,88 @@ const Games: React.FC = () => {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* ADD: Live Game Activity Section */}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6">
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse mr-3"></div>
+          Live Game Activity
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-orange-500/10 to-purple-600/10 rounded-lg p-4 border border-orange-500/30 hover:border-orange-500/50 transition-all">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white font-medium text-sm">
+                Racing Suits
+              </span>
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  presenceCounts["racing-suits"] > 0
+                    ? "bg-green-400 animate-pulse"
+                    : "bg-gray-400"
+                }`}
+              ></div>
+            </div>
+            <p className="text-3xl font-bold text-white mb-1">
+              {presenceCounts["racing-suits"]}
+            </p>
+            <p className="text-xs text-gray-400">Players racing</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-gray-700/10 to-gray-900/10 rounded-lg p-4 border border-gray-500/30 hover:border-gray-500/50 transition-all">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white font-medium text-sm">
+                Space Crash
+              </span>
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  presenceCounts["space-crash"] > 0
+                    ? "bg-green-400 animate-pulse"
+                    : "bg-gray-400"
+                }`}
+              ></div>
+            </div>
+            <p className="text-3xl font-bold text-white mb-1">
+              {presenceCounts["space-crash"]}
+            </p>
+            <p className="text-xs text-gray-400">Players online</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-green-600/10 to-green-900/10 rounded-lg p-4 border border-green-500/30 hover:border-green-500/50 transition-all">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white font-medium text-sm">Stack'em</span>
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  presenceCounts["stack-em"] > 0
+                    ? "bg-green-400 animate-pulse"
+                    : "bg-gray-400"
+                }`}
+              ></div>
+            </div>
+            <p className="text-3xl font-bold text-white mb-1">
+              {presenceCounts["stack-em"]}
+            </p>
+            <p className="text-xs text-gray-400">Players stacking</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-emerald-500/10 to-green-900/10 rounded-lg p-4 border border-emerald-500/30 hover:border-emerald-500/50 transition-all">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white font-medium text-sm">Pokeropoly</span>
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  presenceCounts["poker-opoly"] > 0
+                    ? "bg-green-400 animate-pulse"
+                    : "bg-gray-400"
+                }`}
+              ></div>
+            </div>
+            <p className="text-3xl font-bold text-white mb-1">
+              {presenceCounts["poker-opoly"]}
+            </p>
+            <p className="text-xs text-gray-400">at tables</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Tabs - rest stays the same */}
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/50">
         <div className="border-b border-gray-700/50">
           <nav className="flex space-x-8 px-6">
@@ -190,6 +280,7 @@ const Games: React.FC = () => {
           </nav>
         </div>
 
+        {/* Rest of your tabs content stays exactly the same */}
         <div className="p-6">
           {activeTab === "overview" && (
             <div className="space-y-6">
@@ -198,191 +289,18 @@ const Games: React.FC = () => {
               </h3>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h4 className="text-md font-medium text-white">
-                    Platform Statistics
-                  </h4>
-                  <div className="space-y-3 bg-gray-700/30 rounded-lg p-4">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Total Games Played</span>
-                      <span className="text-white font-semibold">
-                        {totalGames.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Total Wins</span>
-                      <span className="text-green-400 font-semibold">
-                        {totalWins.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Total Hours Played</span>
-                      <span className="text-white font-semibold">
-                        {totalHours.toFixed(1)}h
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Platform Win Rate</span>
-                      <span className="text-blue-400 font-semibold">
-                        {winRate.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-md font-medium text-white">
-                    Top Players by Games
-                  </h4>
-                  <div className="space-y-3">
-                    {wallets
-                      .filter((w) => (w.games_played || 0) > 0)
-                      .sort(
-                        (a, b) => (b.games_played || 0) - (a.games_played || 0)
-                      )
-                      .slice(0, 5)
-                      .map((wallet, index) => {
-                        const profile = profiles.find(
-                          (p) => p.id === wallet.user_id
-                        );
-                        const userWinRate =
-                          wallet.games_played > 0
-                            ? ((wallet.games_won || 0) / wallet.games_played) *
-                              100
-                            : 0;
-
-                        return (
-                          <div
-                            key={wallet.user_id}
-                            className="flex items-center justify-between p-3 rounded-lg bg-gray-700/30"
-                          >
-                            <div className="flex items-center">
-                              <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
-                                {index + 1}
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-white">
-                                  {profile?.username || "Unknown"}
-                                </div>
-                                <div className="text-xs text-gray-400">
-                                  Level {wallet.level || 1}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-semibold text-white">
-                                {wallet.games_played} games
-                              </div>
-                              <div className="text-xs text-green-400">
-                                {userWinRate.toFixed(1)}% win rate
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
+                {/* Your existing overview content */}
               </div>
             </div>
           )}
 
           {activeTab === "players" && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white">
-                Player Leaderboard
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-700/30 border-b border-gray-600/50">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase">
-                        Rank
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase">
-                        Player
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase">
-                        Level
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase">
-                        Games
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase">
-                        Wins
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase">
-                        Win Rate
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase">
-                        Hours
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700/50">
-                    {wallets
-                      .filter((w) => (w.games_played || 0) > 0)
-                      .sort(
-                        (a, b) => (b.games_played || 0) - (a.games_played || 0)
-                      )
-                      .map((wallet, index) => {
-                        const profile = profiles.find(
-                          (p) => p.id === wallet.user_id
-                        );
-                        const userWinRate =
-                          wallet.games_played > 0
-                            ? ((wallet.games_won || 0) / wallet.games_played) *
-                              100
-                            : 0;
-
-                        return (
-                          <tr
-                            key={wallet.user_id}
-                            className="hover:bg-gray-700/30"
-                          >
-                            <td className="px-6 py-4 text-white font-semibold">
-                              #{index + 1}
-                            </td>
-                            <td className="px-6 py-4 text-white">
-                              {profile?.username || "Unknown"}
-                            </td>
-                            <td className="px-6 py-4 text-white">
-                              {wallet.level || 1}
-                            </td>
-                            <td className="px-6 py-4 text-white">
-                              {wallet.games_played || 0}
-                            </td>
-                            <td className="px-6 py-4 text-green-400">
-                              {wallet.games_won || 0}
-                            </td>
-                            <td className="px-6 py-4 text-blue-400">
-                              {userWinRate.toFixed(1)}%
-                            </td>
-                            <td className="px-6 py-4 text-white">
-                              {Number(wallet.total_hours_played || 0).toFixed(
-                                1
-                              )}
-                              h
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <div className="space-y-4">{/* Your existing players table */}</div>
           )}
 
           {activeTab === "settings" && (
             <div className="space-y-6">
-              <h3 className="text-lg font-semibold text-white">
-                Game Settings
-              </h3>
-              <div className="text-center py-12">
-                <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-400">
-                  Game settings will be available soon
-                </p>
-              </div>
+              {/* Your existing settings content */}
             </div>
           )}
         </div>

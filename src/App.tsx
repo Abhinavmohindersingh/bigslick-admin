@@ -13,6 +13,7 @@ import Login from "./components/Login";
 import HRManagement from "./components/HRManagement";
 import ProjectManagement from "./components/ProjectManagement";
 import { supabase } from "./lib/supabase";
+import { GamePresenceProvider } from "./contexts/GamePresenceContext"; // ADD THIS
 
 function App() {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -98,17 +99,20 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
+  // WRAP THE ENTIRE AUTHENTICATED APP WITH GamePresenceProvider
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
-      <Sidebar
-        activeSection={activeSection}
-        setActiveSection={setActiveSection}
-        onLogout={handleLogout}
-      />
-      <main className="flex-1 lg:ml-64">
-        <div className="p-6 min-h-screen">{renderContent()}</div>
-      </main>
-    </div>
+    <GamePresenceProvider>
+      <div className="flex min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+        <Sidebar
+          activeSection={activeSection}
+          setActiveSection={setActiveSection}
+          onLogout={handleLogout}
+        />
+        <main className="flex-1 lg:ml-64">
+          <div className="p-6 min-h-screen">{renderContent()}</div>
+        </main>
+      </div>
+    </GamePresenceProvider>
   );
 }
 

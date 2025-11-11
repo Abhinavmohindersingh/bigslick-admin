@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Pause,
   Play,
+  Coins,
 } from "lucide-react";
 import { useSupabaseData } from "../hooks/useSupabaseData";
 import { supabase, Profile } from "../lib/supabase";
@@ -27,6 +28,9 @@ const UserManagement: React.FC = () => {
     null
   );
   const [showUserDetails, setShowUserDetails] = useState(false);
+  const [showChipModal, setShowChipModal] = useState(false);
+  const [chipAmount, setChipAmount] = useState("");
+  const [chipOperation, setChipOperation] = useState<"add" | "remove">("add");
 
   // Fetch profiles (confirmed users)
   const {
@@ -37,7 +41,10 @@ const UserManagement: React.FC = () => {
   } = useSupabaseData<ExtendedProfile>("profiles", "*");
 
   // Also fetch wallet data to show user stats
-  const { data: wallets } = useSupabaseData<any>("user_wallet", "*");
+  const { data: wallets, refetch: refetchWallets } = useSupabaseData<any>(
+    "user_wallet",
+    "*"
+  );
 
   console.log("👥 UserManagement - Profiles data:", users?.length, "users");
   console.log("👥 UserManagement - Loading:", loading);
@@ -83,6 +90,7 @@ const UserManagement: React.FC = () => {
     const dateB = new Date(b.created_at).getTime();
     return dateB - dateA; // Descending order (newest first)
   });
+
   const handleToggleUserAccess = async (
     userId: string,
     currentStatus: boolean
@@ -103,6 +111,78 @@ const UserManagement: React.FC = () => {
       console.error("Error updating user status:", err);
       alert("Failed to update user access. Please try again.");
     }
+  };
+
+  const handleChipManagement = async () => {
+    if (!selectedUser || !chipAmount || isNaN(Number(chipAmount))) {
+      alert("Please enter a valid chip amount");
+      return;
+    }
+
+    const amount = Number(chipAmount);
+    if (amount <= 0) {
+      alert("Amount must be greater than 0");
+      return;
+    }
+
+    try {
+      const wallet = getUserWallet(selectedUser.id);
+
+      if (!wallet) {
+        // If wallet doesn't exist, create it first
+        const { error: createError } = await supabase
+          .from("user_wallet")
+          .insert([
+            {
+              user_id: selectedUser.id,
+              chips: chipOperation === "add" ? amount : 0,
+              level: 1,
+              experience: 0,
+              games_played: 0,
+            },
+          ]);
+
+        if (createError) throw createError;
+      } else {
+        // Update existing wallet
+        const currentChips = wallet.chips || 0;
+        let newChips: number;
+
+        if (chipOperation === "add") {
+          newChips = currentChips + amount;
+        } else {
+          newChips = Math.max(0, currentChips - amount); // Don't allow negative chips
+        }
+
+        const { error: updateError } = await supabase
+          .from("user_wallet")
+          .update({ chips: newChips })
+          .eq("user_id", selectedUser.id);
+
+        if (updateError) throw updateError;
+      }
+
+      // Refresh data
+      await refetchWallets();
+      setShowChipModal(false);
+      setChipAmount("");
+      alert(
+        `Successfully ${chipOperation === "add" ? "added" : "removed"} ${amount} chips!`
+      );
+    } catch (err) {
+      console.error("Error managing chips:", err);
+      alert("Failed to update chips. Please try again.");
+    }
+  };
+
+  const openChipModal = (
+    user: ExtendedProfile,
+    operation: "add" | "remove"
+  ) => {
+    setSelectedUser(user);
+    setChipOperation(operation);
+    setChipAmount("");
+    setShowChipModal(true);
   };
 
   if (loading) {
@@ -232,20 +312,34 @@ const UserManagement: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => {
                     setSelectedUser(user);
                     setShowUserDetails(true);
                   }}
-                  className="flex-1 px-3 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors duration-150 flex items-center justify-center gap-2"
+                  className="flex-1 min-w-[120px] px-3 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors duration-150 flex items-center justify-center gap-2"
                 >
                   <Edit className="w-4 h-4" />
-                  View Details
+                  Details
+                </button>
+                <button
+                  onClick={() => openChipModal(user, "add")}
+                  className="flex-1 min-w-[120px] px-3 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors duration-150 flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Chips
+                </button>
+                <button
+                  onClick={() => openChipModal(user, "remove")}
+                  className="flex-1 min-w-[120px] px-3 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors duration-150 flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Remove Chips
                 </button>
                 <button
                   onClick={() => handleToggleUserAccess(user.id, isActive)}
-                  className={`px-3 py-2 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2 ${
+                  className={`flex-1 min-w-[120px] px-3 py-2 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2 ${
                     isActive
                       ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
                       : "bg-green-500/20 text-green-400 hover:bg-green-500/30"
@@ -369,6 +463,20 @@ const UserManagement: React.FC = () => {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
+                          onClick={() => openChipModal(user, "add")}
+                          className="p-2 text-green-400 hover:bg-green-500/20 rounded-lg transition-colors duration-150"
+                          title="Add Chips"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => openChipModal(user, "remove")}
+                          className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors duration-150"
+                          title="Remove Chips"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() =>
                             handleToggleUserAccess(user.id, isActive)
                           }
@@ -469,6 +577,89 @@ const UserManagement: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Chip Management Modal */}
+      {showChipModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white">
+                {chipOperation === "add" ? "Add Chips" : "Remove Chips"}
+              </h3>
+              <button
+                onClick={() => setShowChipModal(false)}
+                className="text-gray-400 hover:text-gray-300 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-semibold">
+                  {(
+                    selectedUser.username ||
+                    selectedUser.email?.split("@")[0] ||
+                    "U"
+                  )
+                    .charAt(0)
+                    ?.toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-white">
+                    {selectedUser.username ||
+                      selectedUser.email?.split("@")[0] ||
+                      "Unknown"}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    Current:{" "}
+                    {getUserWallet(selectedUser.id)?.chips?.toLocaleString() ||
+                      "0"}{" "}
+                    chips
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Amount
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={chipAmount}
+                  onChange={(e) => setChipAmount(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-white"
+                  placeholder="Enter chip amount"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowChipModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleChipManagement}
+                className={`flex-1 px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${
+                  chipOperation === "add"
+                    ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                    : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                } text-white`}
+              >
+                <Coins className="w-4 h-4" />
+                {chipOperation === "add" ? "Add Chips" : "Remove Chips"}
+              </button>
+            </div>
           </div>
         </div>
       )}
